@@ -149,7 +149,7 @@ func (key *morseKey) listen(sc socketClient) {
 			key.keyEvent(val, sc)
 		}
 		lastVal = val
-		time.Sleep(1 * time.Microsecond)
+		time.Sleep(200 * time.Microsecond)
 	}
 }
 
@@ -226,4 +226,3 @@ func main() {
 	sc.listen(tone)
 
 }
-
