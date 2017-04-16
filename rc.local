@@ -1,0 +1,44 @@
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+# Print the IP address
+
+_IP=$(hostname -I) || true
+if [ "$_IP" ]; then
+  printf "My IP address is %s\n" "$_IP"
+fi
+
+exec 2> /rc.local.log      # send stderr from rc.local to a log file
+exec 1>&2                      # send stdout to the same log file
+set -x                         # tell sh to display commands before execution
+
+INTERNET=0;
+
+echo none >/sys/class/leds/led0/trigger
+echo 1 >/sys/class/leds/led0/brightness
+
+while [ $INTERNET -ne 1 ]; do
+    INTERNET=$(ping -q -w 1 -c 1 `ip r | grep default | cut -d ' ' -f 3` > /dev/null && echo 1 || echo 0)
+
+    # Sleep for 2 seconds and try again
+    sleep 2
+ done
+
+echo 0 >/sys/class/leds/led0/brightness
+
+cd /
+./internet-telegraph &
+
+echo mmc0 >/sys/class/leds/led0/trigger
+
+exit 0
