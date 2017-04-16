@@ -14,10 +14,6 @@ var (
 	connections = make(map[*websocket.Conn]interface{})
 )
 
-func log(str string) {
-	fmt.Println(str)
-}
-
 func addConnection(conn *websocket.Conn) {
 	connections[conn] = nil
 	fmt.Println(conn)
@@ -26,12 +22,12 @@ func addConnection(conn *websocket.Conn) {
 	u.Scheme = "http"
 	connections[conn] = u.Path
 	fmt.Println(connections[conn])
-	log("Connection added!")
+	fmt.Println("Connection added!")
 }
 
 func removeConnection(conn *websocket.Conn) {
 	delete(connections, conn)
-	log("Connection removed.")
+	fmt.Println("Connection removed.")
 }
 
 func broadcast(msg string, conn *websocket.Conn) {
@@ -40,19 +36,19 @@ func broadcast(msg string, conn *websocket.Conn) {
 		if err != nil {
 			fmt.Println("Error: ", err.Error())
 		} else {
-			log("Broadcast: " + msg)
+			fmt.Println("Broadcast: " + msg)
 		}
 	}
 }
 
-func broadcastToRoom(msg string, conn *websocket.Conn, room string) {
+func broadcastToChannel(msg string, conn *websocket.Conn, channel string) {
 	for conn := range connections {
-		if conn.Request().URL.Path == room {
+		if conn.Request().URL.Path == channel {
 			err := websocket.Message.Send(conn, msg)
 			if err != nil {
 				fmt.Println("Error: ", err.Error())
 			} else {
-				log("Broadcast: " + msg)
+				fmt.Println("Broadcast: " + msg)
 			}
 		}
 	}
@@ -74,16 +70,16 @@ func Echo(ws *websocket.Conn) {
 		} else {
 			fmt.Println("Received back from client: " + incoming)
 			fmt.Println(ws.Request().URL.Path)
-			room := ws.Request().URL.Path
-			// broadcast(incoming, ws)
+			channel := ws.Request().URL.Path
 
-			broadcastToRoom(incoming, ws, room)
+			broadcastToChannel(incoming, ws, channel)
 		}
 	}
 }
 
 func main() {
-	http.Handle("/", websocket.Handler(Echo))
+	http.Handle("/channel/", websocket.Handler(Echo))
+	// var handlerErr = http.ListenAndServe(os.Getenv("OPENSHIFT_GO_IP")+":"+os.Getenv("OPENSHIFT_GO_PORT"), nil)
 	var handlerErr = http.ListenAndServe(":8000", nil)
 	checkError(handlerErr)
 }
@@ -94,4 +90,3 @@ func checkError(err error) {
 		os.Exit(1)
 	}
 }
-
