@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	//"runtime"
 
   "github.com/stianeikeland/go-rpio"
 	"golang.org/x/net/websocket"
@@ -18,7 +17,8 @@ var (
 	spkrPinBCM    = 10
 	spkrPinNumber = 19
 	state         = "idle"
-	newWebsocketConnection = make(chan bool)
+	stopKeyListener = make(chan bool)
+	startListeners = make(chan bool)
 )
 
 // var stopPWM = make(chan bool)
@@ -58,12 +58,15 @@ func (sc *socketClient) dial(firstDial bool, t tone) {
 			sc.conn = conn
 			playMorse(".-. . .- -.. -.--", t)
 			sc.status = "connected"
-			//fmt.Println("sc.status = "+sc.status)
-			//fmt.Print("sc.conn = ")
-			//fmt.Println(sc.conn)
+			fmt.Println("sc.status = "+sc.status)
+			fmt.Print("sc.conn = ")
+			fmt.Println(sc.conn)
 			if firstDial != true {
-				fmt.Println("Notifying newWebsocketConnection channel of redial.")
-			  newWebsocketConnection <- true // time to restart the listener goroutines with the new websocket
+				// time to restart the listener goroutines with the new websocket
+				fmt.Println("Sending message to stopKeyListener channel.")
+			  stopKeyListener <- true
+				fmt.Println("Sending message to startListeners channel.")
+				startListeners <- true
 				}
 			return
 		}
@@ -204,8 +207,8 @@ func (sc *socketClient) send(data string, t tone) {
 	err := websocket.Message.Send(sc.conn, data)
 	if err != nil {
 		sc.status = "disconnected"
-		// fmt.Print("sc.conn in send function = ")
-		// fmt.Println(sc.conn)
+		fmt.Print("sc.conn in send function = ")
+		fmt.Println(sc.conn)
 		fmt.Println("Could not send message:")
 		fmt.Println(err.Error())
 		fmt.Println("Please double check your internet connection and telegraph configuration.")
@@ -239,14 +242,14 @@ func (key *morseKey) listen(sc socketClient, t tone) {
 		}
 		lastVal = val
 		select {
-			case msg := <-newWebsocketConnection:
+		case msg := <-stopKeyListener:
 				if msg == true {
 					fmt.Println("Websocket has been re-dialled! Stopping key listen goroutine.")
 					msg = false
 					return
 				}
 			default:
-				//do nothing
+				continue
 		}
 		time.Sleep(1 * time.Millisecond)
 	}
@@ -335,13 +338,14 @@ func main() {
 	go key.listen(sc, tone)
 
 	for {
-		msg := <-newWebsocketConnection
-		if msg == true {
-			fmt.Println("New websocket connection! Starting new key listener goroutine.")
-			go key.listen(sc, tone)
-			msg = false
-		}
-
-		time.Sleep(10 * time.Second)
+		select {
+		case msg := <-startListeners:
+			if msg == true {
+				fmt.Println("New websocket connection! Starting new key listener goroutine.")
+				go sc.listen(tone)
+				go key.listen(sc, tone)
+				msg = false
+			}
+	  }
 	}
 }
