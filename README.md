@@ -1,8 +1,10 @@
 # The One-Button Internet Telegraph
 
-The easiest way to install the internet telegraph client is to use our pre-built SD image. But some of you may way want to tinker with the code, or have already have Raspbian installed and configured, and want to run the telegraph from within your existing installation.
+The easiest way to install the internet telegraph client is to use our pre-built SD card image: just download it from the [releases page](https://github.com/TheAutodidacts/InternetTelegraph/releases) and follow the installation instructions in the build tutorial.
 
-### Building from source (optional)
+But some of you may way want to tinker with the code, or have already have Raspbian installed and configured, and want to run the telegraph from within your existing installation. If that sounds like you, read on!
+
+### Building the client from source
 
 Install Golang for your platform. On Linux, you can do that with:
 
@@ -31,7 +33,7 @@ There are two ways to go from here: you can take the SD card out of your Pi and 
 **To install it on the SD card directly:**
 
 1. Take the SD card out of your Pi and plug it into your SD card reader
-2. Download the [code for the Telegraph] from GitHub
+2. [Download the telegraph code](https://github.com/TheAutodidacts/InternetTelegraph/archive/master.zip) from GitHub.
 3. Drag the internet telegraph binary (`internet-telegraph`) and the internet telegraph configuration file (`config.json`) into the root directory of your Pi.
 4. Drag `rc.local` into the `/etc` directory, and replace the rc.local that is already there. (If you’ve customized your rc.local for other reasons, copy the relevant portions into your rc.local rather than overwriting it.)
 5. Set up your Pi to connect to your wifi network by following the [official instructions on raspberrypi.org](https://www.raspberrypi.org/documentation/configuration/wireless/wireless-cli.md)
@@ -45,5 +47,4 @@ There are two ways to go from here: you can take the SD card out of your Pi and 
 4. SSH into your Pi with `ssh pi@192.168.1.123`, replacing 192.168.1.123 with the IP address you find with nmap. (Or try `ssh pi@raspberrypi.local`)
 5. Type in your Pi’s password (which you have hopefully changed from the default, "raspberry")
 6. Download the internet telegraph code from GitHub
-7. Copy over the Telegraph files with `scp ~/Downloads/internet-telegraph/internet-telegraph pi@192.168.1.123:/ && scp ~/Downloads/internet-telegraph/config.json pi@192.168.1.123:/ && ~/Downloads/internet-telegraph/rc.local pi@192.168.1.123:/etc` (replacing `192.168.1.123` with your Pi’s IP address, and `~/Downloads/internet-telegraph` with the path to your local copy of the internet telegraph code).
-a. Test it manually with `./internet-telegraph`, and then reboot your Pi.
+7. Copy over the Telegraph files with `scp ~/Downloads/internet-telegraph/internet-telegraph pi@192.168.1.123:/ && scp ~/Downloads/internet-telegraph/config.json pi@192.168.1.123:/ && ~/Downloads/internet-telegraph/rc.local pi@192.168.1.123:/etc` (replacing `192.168.1.123` with your Pi’s IP address, and `~/Downloads/internet-telegraph` with the path to your local copy of the internet telegraph code). Test it manually with `./internet-telegraph`, and then reboot your Pi.
