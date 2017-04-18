@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/stianeikeland/go-rpio"
+  "github.com/stianeikeland/go-rpio"
 	"golang.org/x/net/websocket"
 )
 
@@ -153,34 +153,21 @@ func (sc *socketClient) onMessage(m string, t tone) {
 
 	value := m[:1]
 	ts := m[1:]
-	fmt.Println("message:")
-	fmt.Println(m)
-	fmt.Println(value)
-	fmt.Println(ts)
-
-	//receiveTs := microseconds()
 
 	fmt.Println("message: ")
 	fmt.Println(m)
-	fmt.Println("value: ")
+	fmt.Println("key value: ")
 	fmt.Println(value)
-	fmt.Println("message timestamp: ")
+	fmt.Println("timestamp: ")
 	fmt.Println(ts)
-
-	//ts64, err := strconv.ParseInt(string(ts), 10, 64)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	// Doesn't work...
-	//for (microseconds() - receiveTs) < ts64 {
+	fmt.Println()
 
 	if value == "1" {
-		fmt.Println("start audio")
+		// fmt.Println("start audio")
 		t.start()
 	}
 	if value == "0" {
-		fmt.Println("stop audio")
+		// fmt.Println("stop audio")
 		t.stop()
 	}
 
@@ -194,14 +181,18 @@ func (sc *socketClient) listen(t tone) {
 		if err != nil {
 			sc.status = "disconnected"
 			fmt.Println("Couldn’t receive message: " + err.Error())
-			time.Sleep(10 * time.Second)
+
 			if sc.status == "dialing" {
 				fmt.Println("Currently attempting to reconnect to the websocket server.")
 			} else {
 				fmt.Println("Attempting to reconnect to websocket server in 10 seconds…")
 				time.Sleep(10 * time.Second)
+				sc.status = "dialing"
 				go sc.dial(t)
 			}
+
+			time.Sleep(10 * time.Second)
+
 		} else {
 			state = "receiving"
 			sc.onMessage(msg, t)
@@ -278,7 +269,7 @@ func (key *morseKey) keyEvent(val rpio.State, sc socketClient, t tone) {
 
 }
 
-func telegraph() {
+func main() {
 
 	if len(os.Getenv("TELEGRAPH_CONFIG_PATH")) == 0 {
 		os.Setenv("TELEGRAPH_CONFIG_PATH", "config.json")
@@ -330,8 +321,4 @@ func telegraph() {
 	go sc.listen(tone)
 
 	key.listen(sc, tone)
-}
-
-func main() {
-	telegraph()
 }
