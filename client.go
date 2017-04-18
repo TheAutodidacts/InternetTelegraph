@@ -54,7 +54,6 @@ func (sc *socketClient) dial(t tone) {
 		conn, err := websocket.Dial("ws://"+sc.ip+":"+sc.port+"/channel/"+sc.channel, "", "http://localhost")
 		if err == nil {
 			sc.conn = conn
-			print(sc.conn)
 			playMorse(".-. . .- -.. -.--", t)
 			sc.status = "connected"
 			break
@@ -145,7 +144,6 @@ func playMorse(message string, t tone) {
 func microseconds() int64 {
 	t := time.Now().UnixNano()
 	ms := t / int64(time.Microsecond)
-	fmt.Println(ms)
 	return ms
 }
 
@@ -154,11 +152,11 @@ func (sc *socketClient) onMessage(m string, t tone) {
 	value := m[:1]
 	ts := m[1:]
 
-	fmt.Println("message: ")
+	fmt.Print("message:   ")
 	fmt.Println(m)
-	fmt.Println("key value: ")
+	fmt.Print("key value: ")
 	fmt.Println(value)
-	fmt.Println("timestamp: ")
+	fmt.Print("timestamp: ")
 	fmt.Println(ts)
 	fmt.Println()
 
@@ -201,7 +199,6 @@ func (sc *socketClient) listen(t tone) {
 }
 
 func (sc *socketClient) send(data string, t tone) {
-	fmt.Println("Send func")
 	err := websocket.Message.Send(sc.conn, data)
 	if err != nil {
 		sc.status = "disconnected"
@@ -230,7 +227,7 @@ func (key *morseKey) listen(sc socketClient, t tone) {
 	for {
 		val := key.keyPin.Read()
 		if val != lastVal && lastVal != 2 {
-			fmt.Println(lastVal)
+			fmt.Println("keyEvent: "+lastVal+" → "+val)
 			key.keyEvent(val, sc, t)
 		}
 		lastVal = val
@@ -239,8 +236,6 @@ func (key *morseKey) listen(sc socketClient, t tone) {
 }
 
 func (key *morseKey) keyEvent(val rpio.State, sc socketClient, t tone) {
-	fmt.Println("keyevent")
-	fmt.Println(val)
 	if state == "idle" {
 		state = "sending"
 	}
