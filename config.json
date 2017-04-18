@@ -1,5 +1,5 @@
 {
   "room": "lobby",
   "server": "morse.autodidacts.io",
-  "port": 8000
+  "port": "8000"
 }
