@@ -227,7 +227,10 @@ func (key *morseKey) listen(sc socketClient, t tone) {
 	for {
 		val := key.keyPin.Read()
 		if val != lastVal && lastVal != 2 {
-			fmt.Println("keyEvent: "+lastVal+" → "+val)
+			fmt.Print("keyEvent: ")
+			fmt.Print(lastVal)
+			fmt.Print(" → ")
+			fmt.Println(val)
 			key.keyEvent(val, sc, t)
 		}
 		lastVal = val
