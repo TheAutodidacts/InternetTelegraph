@@ -41,10 +41,10 @@ There are two ways to go from here: you can take the SD card out of your Pi and 
 
 **To install the internet telegraph client over SSH:**
 
-1. Install [nmap](http://nmap.org) if you don’t have it already, and then scan your network with the command `nmap 192.168.1.0/24`.
-2. Boot up your Pi and connect it to the internet
-3. Run nmap again, and notice which IP address is new: that should be your Pi
-4. SSH into your Pi with `ssh pi@192.168.1.123`, replacing 192.168.1.123 with the IP address you find with nmap. (Or try `ssh pi@raspberrypi.local`)
-5. Type in your Pi’s password (which you have hopefully changed from the default, "raspberry")
-6. Download the internet telegraph code from GitHub
-7. Copy over the Telegraph files with `scp ~/Downloads/internet-telegraph/internet-telegraph pi@192.168.1.123:/ && scp ~/Downloads/internet-telegraph/config.json pi@192.168.1.123:/ && ~/Downloads/internet-telegraph/rc.local pi@192.168.1.123:/etc` (replacing `192.168.1.123` with your Pi’s IP address, and `~/Downloads/internet-telegraph` with the path to your local copy of the internet telegraph code). Test it manually with `./internet-telegraph`, and then reboot your Pi.
+1. Boot up your Pi and connect it to the internet
+- SSH into your Pi. You can use [nmap](http://nmap.org) (`nmap 192.168.1.0/24`) to find your Pi’s IP address, or try `ssh pi@raspberrypi.local`.
+- Type in your Pi’s password (which you have hopefully changed from the default, "raspberry")
+- [Download the telegraph code](https://github.com/TheAutodidacts/InternetTelegraph/archive/master.zip) from GitHub.
+- Copy the files to your Pi over SSH with ```scp ~/Downloads/internet-telegraph/internet-telegraph pi@raspberrypi.local:/ && scp ~/Downloads/internet-telegraph/config.json pi@raspberrypi.local:/ && ~/Downloads/internet-telegraph/rc.local pi@raspberrypi.local:/etc``` (replacing `~/Downloads/internet-telegraph` with the path to your local copy of the internet telegraph code).
+- Test it manually with `./internet-telegraph`
+- Reboot your Pi with `sudo reboot`
