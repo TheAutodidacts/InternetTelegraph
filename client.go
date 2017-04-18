@@ -190,8 +190,12 @@ func (sc *socketClient) listen(t tone) {
 			} else {
 				fmt.Println("Attempting to reconnect to websocket server in 10 seconds…")
 				time.Sleep(10 * time.Second)
-				sc.status = "dialling"
-				go sc.dial(false, t)
+				if sc.status != "dialling" {
+				  sc.status = "dialling"
+				  go sc.dial(false, t)
+				} else {
+					fmt.Println("Currently redialling websocket server.")
+				}
 			}
 
 			time.Sleep(10 * time.Second)
