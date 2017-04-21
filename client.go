@@ -155,8 +155,8 @@ func microseconds() int64 {
 func (sc *socketClient) onMessage(m string, t tone) {
 
 	value := m[:1]
-	ts := m[1:]
-
+	//ts := m[1:]
+  /*
 	fmt.Print("message:   ")
 	fmt.Println(m)
 	fmt.Print("key value: ")
@@ -164,6 +164,7 @@ func (sc *socketClient) onMessage(m string, t tone) {
 	fmt.Print("timestamp: ")
 	fmt.Println(ts)
 	fmt.Println()
+  */
 
 	if value == "1" {
 		// fmt.Println("start audio")
@@ -173,6 +174,8 @@ func (sc *socketClient) onMessage(m string, t tone) {
 		// fmt.Println("stop audio")
 		t.stop()
 	}
+  fmt.Print("Received message:")
+  fmt.Println(m)
 
 }
 
@@ -208,7 +211,10 @@ func (sc *socketClient) listen(t tone) {
 }
 
 func (sc *socketClient) send(data string, t tone) {
+  send_start_us := microseconds()
 	err := websocket.Message.Send(sc.conn, data)
+  send_end_us := microseconds()
+  send_time := (send_end_us - send_start_us)
 	if err != nil {
 		sc.status = "disconnected"
 		fmt.Print("sc.conn in send function = ")
@@ -227,7 +233,12 @@ func (sc *socketClient) send(data string, t tone) {
 				go sc.dial(false, t)
 			}
 		}
-	}
+	}else{
+    fmt.Print("Sent: ")
+    fmt.Print(data)
+    fmt.Print(" send time: ")
+    fmt.Println(send_time)
+  }
 	return
 }
 
@@ -246,7 +257,7 @@ func (key *morseKey) listen(sc socketClient, t tone) {
 		}
 		lastVal = val
 		select {
-		case msg := <-stopKeyListener:
+		  case msg := <-stopKeyListener:
 				if msg == true {
 					fmt.Println("Websocket has been re-dialled! Stopping key listen goroutine.")
 					msg = false
