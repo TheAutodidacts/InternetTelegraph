@@ -7,18 +7,18 @@ import (
 	"strconv"
 	"time"
 
-  "github.com/stianeikeland/go-rpio"
+	"github.com/stianeikeland/go-rpio"
 	"golang.org/x/net/websocket"
 )
 
 var (
-	keyPinBCM     = 07
-	keyPinNumber  = 26
-	spkrPinBCM    = 10
-	spkrPinNumber = 19
-	state         = "idle"
+	keyPinBCM       = 07
+	keyPinNumber    = 26
+	spkrPinBCM      = 10
+	spkrPinNumber   = 19
+	state           = "idle"
 	stopKeyListener = make(chan bool)
-	startListeners = make(chan bool)
+	startListeners  = make(chan bool)
 )
 
 // var stopPWM = make(chan bool)
@@ -58,16 +58,16 @@ func (sc *socketClient) dial(firstDial bool, t tone) {
 			sc.conn = conn
 			playMorse(".-. . .- -.. -.--", t)
 			sc.status = "connected"
-			fmt.Println("sc.status = "+sc.status)
+			fmt.Println("sc.status = " + sc.status)
 			fmt.Print("sc.conn = ")
 			fmt.Println(sc.conn)
 			if firstDial != true {
 				// time to restart the listener goroutines with the new websocket
 				fmt.Println("Sending message to stopKeyListener channel.")
-			  stopKeyListener <- true
+				stopKeyListener <- true
 				fmt.Println("Sending message to startListeners channel.")
 				startListeners <- true
-				}
+			}
 			return
 		}
 		if err != nil {
@@ -156,15 +156,15 @@ func (sc *socketClient) onMessage(m string, t tone) {
 
 	value := m[:1]
 	//ts := m[1:]
-  /*
-	fmt.Print("message:   ")
-	fmt.Println(m)
-	fmt.Print("key value: ")
-	fmt.Println(value)
-	fmt.Print("timestamp: ")
-	fmt.Println(ts)
-	fmt.Println()
-  */
+	/*
+		fmt.Print("message:   ")
+		fmt.Println(m)
+		fmt.Print("key value: ")
+		fmt.Println(value)
+		fmt.Print("timestamp: ")
+		fmt.Println(ts)
+		fmt.Println()
+	*/
 
 	if value == "1" {
 		// fmt.Println("start audio")
@@ -174,8 +174,10 @@ func (sc *socketClient) onMessage(m string, t tone) {
 		// fmt.Println("stop audio")
 		t.stop()
 	}
-  fmt.Print("Received message:")
-  fmt.Println(m)
+	fmt.Print("Received message ")
+	fmt.Print(m)
+	fmt.Print(" at ")
+	fmt.Println(time.Now())
 
 }
 
@@ -194,8 +196,8 @@ func (sc *socketClient) listen(t tone) {
 				fmt.Println("Attempting to reconnect to websocket server in 10 seconds…")
 				time.Sleep(10 * time.Second)
 				if sc.status != "dialling" {
-				  sc.status = "dialling"
-				  go sc.dial(false, t)
+					sc.status = "dialling"
+					go sc.dial(false, t)
 				} else {
 					fmt.Println("Currently redialling websocket server.")
 				}
@@ -211,10 +213,10 @@ func (sc *socketClient) listen(t tone) {
 }
 
 func (sc *socketClient) send(data string, t tone) {
-  send_start_us := microseconds()
+	send_start_us := microseconds()
 	err := websocket.Message.Send(sc.conn, data)
-  send_end_us := microseconds()
-  send_time := (send_end_us - send_start_us)
+	send_end_us := microseconds()
+	send_time := (send_end_us - send_start_us)
 	if err != nil {
 		sc.status = "disconnected"
 		fmt.Print("sc.conn in send function = ")
@@ -233,12 +235,12 @@ func (sc *socketClient) send(data string, t tone) {
 				go sc.dial(false, t)
 			}
 		}
-	}else{
-    fmt.Print("Sent: ")
-    fmt.Print(data)
-    fmt.Print(" send time: ")
-    fmt.Println(send_time)
-  }
+	} else {
+		fmt.Print("Sent: ")
+		fmt.Print(data)
+		fmt.Print(" send time: ")
+		fmt.Println(send_time)
+	}
 	return
 }
 
@@ -257,14 +259,14 @@ func (key *morseKey) listen(sc socketClient, t tone) {
 		}
 		lastVal = val
 		select {
-		  case msg := <-stopKeyListener:
-				if msg == true {
-					fmt.Println("Websocket has been re-dialled! Stopping key listen goroutine.")
-					msg = false
-					return
-				}
-			default:
-				continue
+		case msg := <-stopKeyListener:
+			if msg == true {
+				fmt.Println("Websocket has been re-dialled! Stopping key listen goroutine.")
+				msg = false
+				return
+			}
+		default:
+			continue
 		}
 		time.Sleep(1 * time.Millisecond)
 	}
@@ -361,6 +363,6 @@ func main() {
 				go key.listen(sc, tone)
 				msg = false
 			}
-	  }
+		}
 	}
 }
