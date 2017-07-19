@@ -19,6 +19,10 @@ var (
 	state           = "idle"
 	stopKeyListener = make(chan bool)
 	startListeners  = make(chan bool)
+	queue           = string[]
+	bufferReferenceTime = 0
+	bufferDelay = 0 // what should this be?
+	remoteKeyId string // identifier for the telegraph that the current queue came from
 )
 
 // var stopPWM = make(chan bool)
@@ -152,33 +156,55 @@ func microseconds() int64 {
 	return ms
 }
 
+func readQueue(t tone) {
+	// TODO: sort queue by timestamps in case they came in in the wrong order
+	for {
+		if len(queue) > 0 {
+			m = queue[0]
+			if m[1:len(queue[0])-4] > bufferReferenceTime + microseconds() {
+				value := m[:1]
+				ts := m[1:len(queue)-4]
+				//keyId := m[:len(m)-4]
+				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
+				t.set(value)
+			}
+		} else {
+			break
+		}
+	}
+}
+
 func (sc *socketClient) onMessage(m string, t tone) {
+	value := m[:1] // whether they key went up or down
+	ts := m[1:len(queue)-4] // timestamp (in microseconds)
+	keyId := m[len(m)-4:] // last 4 digits of message is the key id
 
-	value := m[:1]
-	//ts := m[1:]
-	/*
-		fmt.Print("message:   ")
-		fmt.Println(m)
-		fmt.Print("key value: ")
-		fmt.Println(value)
-		fmt.Print("timestamp: ")
-		fmt.Println(ts)
-		fmt.Println()
-	*/
+	if(keyId != remoteKeyId){ // if its a different telegraph sending
+		if (len(queue) > 0) {
+			// if there's already a queue from a different telegraph, do nothing
+		} else {
+			remoteKeyId = keyId
+			bufferReferenceTime = (microseconds() + bufferDelay) - ts
+			queue.append(m)
+		}
 
-	if value == "1" {
-		// fmt.Println("start audio")
-		t.start()
+		// if value == "1" {
+		// 	// fmt.Println("start audio")
+		// 	t.start()
+		// }
+		// if value == "0" {
+		// 	// fmt.Println("stop audio")
+		// 	t.stop()
+		// }
+		fmt.Print("Received message ")
+		fmt.Print(m)
+		fmt.Print(" from ")
+		fmt.Print(keyId)
+		fmt.Print(" at ")
+		fmt.Println(time.Now())
+	} else {
+		queue.append(m)
 	}
-	if value == "0" {
-		// fmt.Println("stop audio")
-		t.stop()
-	}
-	fmt.Print("Received message ")
-	fmt.Print(m)
-	fmt.Print(" at ")
-	fmt.Println(time.Now())
-
 }
 
 func (sc *socketClient) listen(t tone) {
@@ -278,6 +304,7 @@ func (key *morseKey) keyEvent(val rpio.State, sc socketClient, t tone) {
 	}
 
 	if val == rpio.Low {
+		t.stop()
 		key.lastEnd = microseconds()
 		key.lastDur = key.lastEnd - key.lastStart
 		value := strconv.FormatInt(key.lastState, 10)
@@ -289,6 +316,7 @@ func (key *morseKey) keyEvent(val rpio.State, sc socketClient, t tone) {
 	}
 
 	if val == rpio.High {
+		t.start()
 		key.lastEnd = microseconds()
 		key.lastDur = key.lastEnd - key.lastStart
 		value := strconv.FormatInt(key.lastState, 10)
