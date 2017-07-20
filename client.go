@@ -12,17 +12,17 @@ import (
 )
 
 var (
-	keyPinBCM       = 07
-	keyPinNumber    = 26
-	spkrPinBCM      = 10
-	spkrPinNumber   = 19
-	state           = "idle"
-	stopKeyListener = make(chan bool)
-	startListeners  = make(chan bool)
-	queue           = string[]
-	bufferReferenceTime = 0
-	bufferDelay = 0 // what should this be?
-	remoteKeyId string // identifier for the telegraph that the current queue came from
+	keyPinBCM           = 07
+	keyPinNumber        = 26
+	spkrPinBCM          = 10
+	spkrPinNumber       = 19
+	state               = "idle"
+	stopKeyListener     = make(chan bool)
+	startListeners      = make(chan bool)
+	queue               []string
+	bufferReferenceTime int64
+	bufferDelay         int64  // what should this be?
+	remoteKeyId         string // identifier for the telegraph that the current queue came from
 )
 
 // var stopPWM = make(chan bool)
@@ -160,10 +160,16 @@ func readQueue(t tone) {
 	// TODO: sort queue by timestamps in case they came in in the wrong order
 	for {
 		if len(queue) > 0 {
-			m = queue[0]
-			if m[1:len(queue[0])-4] > bufferReferenceTime + microseconds() {
-				value := m[:1]
-				ts := m[1:len(queue)-4]
+			m, err := strconv.ParseInt(queue[0], 10, 64)
+			if err != nil {
+				fmt.Println(err)
+			}
+			// ts := m[1 : len(queue)-4]
+			ts := m % 1e4
+
+			if ts > bufferReferenceTime+microseconds() {
+				value := int(m / 1e1)
+
 				//keyId := m[:len(m)-4]
 				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
 				t.set(value)
@@ -175,17 +181,21 @@ func readQueue(t tone) {
 }
 
 func (sc *socketClient) onMessage(m string, t tone) {
-	value := m[:1] // whether they key went up or down
-	ts := m[1:len(queue)-4] // timestamp (in microseconds)
-	keyId := m[len(m)-4:] // last 4 digits of message is the key id
+	// value := m[:1]            // whether they key went up or down
+	ts := m[1 : len(queue)-4] // timestamp (in microseconds)
+	keyId := m[len(m)-4:]     // last 4 digits of message is the key id
 
-	if(keyId != remoteKeyId){ // if its a different telegraph sending
-		if (len(queue) > 0) {
+	if keyId != remoteKeyId { // if its a different telegraph sending
+		if len(queue) > 0 {
 			// if there's already a queue from a different telegraph, do nothing
 		} else {
 			remoteKeyId = keyId
-			bufferReferenceTime = (microseconds() + bufferDelay) - ts
-			queue.append(m)
+			tsint64, err := strconv.ParseInt(ts, 10, 64)
+			if err != nil {
+				fmt.Println(err)
+			}
+			bufferReferenceTime = (microseconds() + bufferDelay) - tsint64
+			queue = append(queue, m)
 		}
 
 		// if value == "1" {
@@ -203,7 +213,7 @@ func (sc *socketClient) onMessage(m string, t tone) {
 		fmt.Print(" at ")
 		fmt.Println(time.Now())
 	} else {
-		queue.append(m)
+		queue = append(queue, m)
 	}
 }
 
