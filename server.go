@@ -1,27 +1,33 @@
 package main
 
-import _ "net/http/pprof"
 import (
 	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 
 	"golang.org/x/net/websocket"
 )
 
+type Client struct {
+	id   int
+	conn *websocket.Conn
+	path interface{}
+}
+
 var (
-	connections = make(map[*websocket.Conn]interface{})
+	connections = make(map[*websocket.Conn]Client)
 )
 
-func addConnection(conn *websocket.Conn) {
-	connections[conn] = nil
-	fmt.Println(conn)
-	u := conn.Request().URL
-	u.Host = conn.Request().Host
+func addConnection(ws *websocket.Conn) {
+	id := len(connections) + 1
+
+	fmt.Println(ws)
+	u := ws.Request().URL
+	u.Host = ws.Request().Host
 	u.Scheme = "http"
-	connections[conn] = u.Path
-	fmt.Println(connections[conn])
+	connections[ws] = Client{id: id, path: u.Path, conn: ws}
 	fmt.Println("Connection added!")
 }
 
@@ -71,7 +77,7 @@ func Echo(ws *websocket.Conn) {
 			fmt.Println("Received back from client: " + incoming)
 			fmt.Println(ws.Request().URL.Path)
 			channel := ws.Request().URL.Path
-
+			incoming = incoming + fmt.Sprintf("%04d\n", connections[ws].id)
 			broadcastToChannel(incoming, ws, channel)
 		}
 	}
