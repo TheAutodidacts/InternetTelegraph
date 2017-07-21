@@ -20,6 +20,7 @@ var (
 	stopKeyListener     = make(chan bool)
 	startListeners      = make(chan bool)
 	queue               []string
+	outQueue            []string
 	bufferReferenceTime int64
 	bufferDelay         int64  // what should this be?
 	remoteKeyId         string // identifier for the telegraph that the current queue came from
@@ -156,6 +157,7 @@ func microseconds() int64 {
 	return ms
 }
 
+/*
 func readQueue(t tone) {
 	// TODO: sort queue by timestamps in case they came in in the wrong order
 	for {
@@ -179,21 +181,23 @@ func readQueue(t tone) {
 		}
 	}
 }
+*/
 
 func (sc *socketClient) onMessage(m string, t tone) {
 	// value := m[:1]            // whether they key went up or down
-	ts := m[1 : len(queue)-4] // timestamp (in microseconds)
-	keyId := m[len(m)-4:]     // last 4 digits of message is the key id
+	ts := m[1 : len(m)-4] // timestamp (in microseconds)
+	keyId := m[len(m)-4:] // last 4 digits of message is the key id
 
-	if keyId != remoteKeyId { // if its a different telegraph sending
+	if keyId != lastKeyId { // if its a different telegraph sending
 		if len(queue) > 0 {
 			// if there's already a queue from a different telegraph, do nothing
 		} else {
-			remoteKeyId = keyId
+			lastKeyId = keyId
 			tsint64, err := strconv.ParseInt(ts, 10, 64)
 			if err != nil {
 				fmt.Println(err)
 			}
+			// Set the time offset between local and remote clients
 			bufferReferenceTime = (microseconds() + bufferDelay) - tsint64
 			queue = append(queue, m)
 		}
@@ -223,31 +227,65 @@ func (sc *socketClient) listen(t tone) {
 	for {
 		err := websocket.Message.Receive(sc.conn, &msg)
 		if err != nil {
-			sc.status = "disconnected"
-			fmt.Println("Couldn’t receive message: " + err.Error())
+			/*
+				sc.status = "disconnected"
+				fmt.Println("Couldn’t receive message: " + err.Error())
 
-			if sc.status == "dialling" {
-				fmt.Println("Currently redialling websocket server.")
-			} else {
-				fmt.Println("Attempting to reconnect to websocket server in 10 seconds…")
-				time.Sleep(10 * time.Second)
-				if sc.status != "dialling" {
-					sc.status = "dialling"
-					go sc.dial(false, t)
-				} else {
+				if sc.status == "dialling" {
 					fmt.Println("Currently redialling websocket server.")
+				} else {
+					fmt.Println("Attempting to reconnect to websocket server in 10 seconds…")
+					time.Sleep(10 * time.Second)
+					if sc.status != "dialling" {
+						sc.status = "dialling"
+						sc.dial(false, t)
+					} else {
+						fmt.Println("Currently redialling websocket server.")
+					}
 				}
-			}
 
-			time.Sleep(10 * time.Second)
+				time.Sleep(10 * time.Second)
+			*/
+			fmt.Println("Websocket error on Message.Receive(): " + err.Error())
+			sc.status = "disconnected"
+			sc.dial(false, t)
 
 		} else {
-			state = "receiving"
+			//state = "receiving"
 			sc.onMessage(msg, t)
 		}
 	}
 }
 
+func (sc *socketClient) outputListen() {
+	for {
+		if len(outQueue) > 0 {
+			data, err := strconv.ParseInt(outQueue[0], 10, 64)
+			err := websocket.Message.Send(sc.conn, data)
+			if err != nil {
+				sc.status = "disconnected"
+				fmt.Print("sc.conn in send function = ")
+				fmt.Println(sc.conn)
+				fmt.Println("Could not send message:")
+				fmt.Println(err.Error())
+				if data[:1] != "1" { // Error beep only on keyup, to prevent confusion.
+					playMorse("........", t)
+					fmt.Println("Redialling websocket server…")
+					fmt.Println("Current status: " + sc.status)
+					sc.dial(false, t)
+				}
+			} else {
+				fmt.Print("Sent: ")
+				fmt.Print(data)
+				fmt.Print(" send time: ")
+				fmt.Println(send_time)
+				outQueue = append(outQueue[:0], outQueue[0+1:]...) //
+			}
+		}
+	}
+}
+
+/*
 func (sc *socketClient) send(data string, t tone) {
 	send_start_us := microseconds()
 	err := websocket.Message.Send(sc.conn, data)
@@ -262,13 +300,11 @@ func (sc *socketClient) send(data string, t tone) {
 		fmt.Println("Please double check your internet connection and telegraph configuration.")
 		if data[:1] != "1" { // Error beep on only on keyup, to prevent confusion.
 			playMorse("........", t)
-			if sc.status == "dialling" || sc.status == "connected" {
-				fmt.Println("Currently redialling websocket server.")
-				fmt.Println("Current status: " + sc.status)
-			} else {
-				fmt.Println("Redialling websocket server in 10 seconds…")
-				fmt.Println("Current status: " + sc.status)
-				go sc.dial(false, t)
+			fmt.Println("Redialling websocket server…")
+			fmt.Println("Current status: " + sc.status)
+			sc.dial(false, t)
+			if sc.status == "connected" {
+				sc.send(data, t)
 			}
 		}
 	} else {
@@ -279,7 +315,9 @@ func (sc *socketClient) send(data string, t tone) {
 	}
 	return
 }
+*/
 
+/*
 func (key *morseKey) listen(sc socketClient, t tone) {
 	var lastVal rpio.State = 2
 	// This is not ideal. This should be replaced with an edge detect.
@@ -307,7 +345,9 @@ func (key *morseKey) listen(sc socketClient, t tone) {
 		time.Sleep(1 * time.Millisecond)
 	}
 }
+*/
 
+/*
 func (key *morseKey) keyEvent(val rpio.State, sc socketClient, t tone) {
 	if state == "idle" {
 		state = "sending"
@@ -338,6 +378,8 @@ func (key *morseKey) keyEvent(val rpio.State, sc socketClient, t tone) {
 	}
 
 }
+
+*/
 
 func main() {
 	//for {
@@ -382,25 +424,66 @@ func main() {
 	// Init socketClient & dial websocket
 	sc := socketClient{ip: config.Server, port: config.Port, channel: config.Channel}
 
-	if sc.status != "connected" && sc.status != "dialling" {
-		sc.dial(true, tone) // Connect!
-	}
-
-	state = "receiving"
+	sc.dial(true, tone)
 
 	go sc.listen(tone)
 
-	go key.listen(sc, tone)
+	go sc.outputListen()
 
+	// Adding a simplified version of things...
 	for {
-		select {
-		case msg := <-startListeners:
-			if msg == true {
-				fmt.Println("New websocket connection! Starting new key listener goroutine.")
-				go sc.listen(tone)
-				go key.listen(sc, tone)
-				msg = false
+
+		if sc.status != "connected" && sc.status != "dialling" {
+			sc.dial(true, tone) // Connect
+		}
+
+		keyVal := key.keyPin.Read()
+		if keyVal != lastKeyVal {
+			fmt.Print("key change: ")
+			fmt.Print(lastKeyVal)
+			fmt.Print(" → ")
+			fmt.Println(keyVal)
+			t.set(keyVal)
+			timestamp := strconv.FormatInt(microseconds(), 10)
+			msg := keyVal + timestamp
+			outQueue = append(outQueue, msg)
+			//go sc.send(msg, t)
+			lastKeyValue = keyVal
+		}
+
+		if len(queue) > 0 {
+			m, err := strconv.ParseInt(queue[0], 10, 64)
+			if err != nil {
+				fmt.Println(err)
+			}
+			// ts := m[1 : len(queue)-4]
+			ts := m % 1e4
+
+			if ts > bufferReferenceTime+microseconds() {
+				msgValue := int(m / 1e1)
+
+				//keyId := m[:len(m)-4]
+				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
+				t.set(msgValue)
 			}
 		}
 	}
+
+	//state = "receiving"
+
+	//go key.listen(sc, tone)
+
+	/*
+		for {
+			select {
+			case msg := <-startListeners:
+				if msg == true {
+					fmt.Println("New websocket connection! Starting new key listener goroutine.")
+					go sc.listen(tone)
+					go key.listen(sc, tone)
+					msg = false
+				}
+			}
+		}
+	*/
 }
