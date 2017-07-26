@@ -168,7 +168,7 @@ func playMorse(message string, t tone) {
 			time.Sleep(3 * speed * time.Millisecond)
 			t.stop()
 			time.Sleep(speed * time.Millisecond)
-		case 32: // == "-"
+		case 32: // == " "
 			time.Sleep(3 * speed * time.Millisecond)
 		default:
 			// Do nothing...
@@ -182,40 +182,14 @@ func microseconds() int64 {
 	return ms
 }
 
-/*
-func readQueue(t tone) {
-	// TODO: sort queue by timestamps in case they came in in the wrong order
-	for {
-		if len(queue) > 0 {
-			m, err := strconv.ParseInt(queue[0], 10, 64)
-			if err != nil {
-				fmt.Println(err)
-			}
-			// ts := m[1 : len(queue)-4]
-			ts := m % 1e4
-
-			if ts > bufferReferenceTime+microseconds() {
-				value := int(m / 1e1)
-
-				//keyId := m[:len(m)-4]
-				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
-				t.set(value)
-			}
-		} else {
-			break
-		}
-	}
-}
-*/
-
 func (sc *socketClient) onMessage(m string, t tone) {
-	// value := m[:1]            // whether they key went up or down
+	// value := m[:1]            // whether the key went up or down
 	ts := m[1 : len(m)-4] // timestamp (in microseconds)
 	keyId := m[len(m)-4:] // last 4 digits of message is the key id
 
 	if keyId != lastKeyId { // if its a different telegraph sending
 		if len(queue) > 0 {
-			// if there's already a queue from a different telegraph, do nothing
+			// ...and there's already a queue from a different telegraph, do nothing.
 		} else {
 			lastKeyId = keyId
 			tsint64, err := strconv.ParseInt(ts, 10, 64)
@@ -227,14 +201,6 @@ func (sc *socketClient) onMessage(m string, t tone) {
 			queue = append(queue, m)
 		}
 
-		// if value == "1" {
-		// 	// fmt.Println("start audio")
-		// 	t.start()
-		// }
-		// if value == "0" {
-		// 	// fmt.Println("stop audio")
-		// 	t.stop()
-		// }
 		fmt.Print("Received message ")
 		fmt.Print(m)
 		fmt.Print(" from ")
@@ -252,31 +218,11 @@ func (sc *socketClient) listen(t tone) {
 	for {
 		err := websocket.Message.Receive(sc.conn, &msg)
 		if err != nil {
-			/*
-				sc.status = "disconnected"
-				fmt.Println("Couldn’t receive message: " + err.Error())
-
-				if sc.status == "dialling" {
-					fmt.Println("Currently redialling websocket server.")
-				} else {
-					fmt.Println("Attempting to reconnect to websocket server in 10 seconds…")
-					time.Sleep(10 * time.Second)
-					if sc.status != "dialling" {
-						sc.status = "dialling"
-						sc.dial(false, t)
-					} else {
-						fmt.Println("Currently redialling websocket server.")
-					}
-				}
-
-				time.Sleep(10 * time.Second)
-			*/
 			fmt.Println("Websocket error on Message.Receive(): " + err.Error())
 			sc.status = "disconnected"
 			sc.dial(false, t)
 
 		} else {
-			//state = "receiving"
 			sc.onMessage(msg, t)
 		}
 	}
@@ -288,10 +234,6 @@ func (sc *socketClient) outputListen(t tone) {
 
 			fmt.Println("Out queue detected in outputListen()")
 
-			// data, err := strconv.ParseInt(outQueue[0], 10, 64)
-			// if err != nil {
-			// 	fmt.Println(err.Error())
-			// }
 			fmt.Println("Sending message: " + outQueue[0])
 			sendErr := websocket.Message.Send(sc.conn, outQueue[0])
 			if sendErr != nil {
@@ -309,112 +251,13 @@ func (sc *socketClient) outputListen(t tone) {
 			} else {
 				fmt.Print("Sent: ")
 				fmt.Println(outQueue[0])
-				// fmt.Print(" send time: ")
-				// fmt.Println(send_time)
 				outQueue = append(outQueue[:0], outQueue[0+1:]...) //
 			}
 		}
 	}
 }
 
-/*
-func (sc *socketClient) send(data string, t tone) {
-	send_start_us := microseconds()
-	err := websocket.Message.Send(sc.conn, data)
-	send_end_us := microseconds()
-	send_time := (send_end_us - send_start_us)
-	if err != nil {
-		sc.status = "disconnected"
-		fmt.Print("sc.conn in send function = ")
-		fmt.Println(sc.conn)
-		fmt.Println("Could not send message:")
-		fmt.Println(err.Error())
-		fmt.Println("Please double check your internet connection and telegraph configuration.")
-		if data[:1] != "1" { // Error beep on only on keyup, to prevent confusion.
-			playMorse("........", t)
-			fmt.Println("Redialling websocket server…")
-			fmt.Println("Current status: " + sc.status)
-			sc.dial(false, t)
-			if sc.status == "connected" {
-				sc.send(data, t)
-			}
-		}
-	} else {
-		fmt.Print("Sent: ")
-		fmt.Print(data)
-		fmt.Print(" send time: ")
-		fmt.Println(send_time)
-	}
-	return
-}
-*/
-
-/*
-func (key *morseKey) listen(sc socketClient, t tone) {
-	var lastVal rpio.State = 2
-	// This is not ideal. This should be replaced with an edge detect.
-	// Waiting on https://github.com/stianeikeland/go-rpio/issues/8.
-	for {
-		val := key.keyPin.Read()
-		if val != lastVal && lastVal != 2 {
-			fmt.Print("keyEvent: ")
-			fmt.Print(lastVal)
-			fmt.Print(" → ")
-			fmt.Println(val)
-			key.keyEvent(val, sc, t)
-		}
-		lastVal = val
-		select {
-		case msg := <-stopKeyListener:
-			if msg == true {
-				fmt.Println("Websocket has been re-dialled! Stopping key listen goroutine.")
-				msg = false
-				return
-			}
-		default:
-			continue
-		}
-		time.Sleep(1 * time.Millisecond)
-	}
-}
-*/
-
-/*
-func (key *morseKey) keyEvent(val rpio.State, sc socketClient, t tone) {
-	if state == "idle" {
-		state = "sending"
-	}
-
-	if val == rpio.Low {
-		t.stop()
-		key.lastEnd = microseconds()
-		key.lastDur = key.lastEnd - key.lastStart
-		value := strconv.FormatInt(key.lastState, 10)
-		timestamp := strconv.FormatInt(key.lastDur, 10)
-		msg := value + timestamp
-		go sc.send(msg, t)
-		key.lastState = 0
-		key.lastStart = microseconds()
-	}
-
-	if val == rpio.High {
-		t.start()
-		key.lastEnd = microseconds()
-		key.lastDur = key.lastEnd - key.lastStart
-		value := strconv.FormatInt(key.lastState, 10)
-		timestamp := strconv.FormatInt(key.lastDur, 10)
-		msg := value + timestamp
-		go sc.send(msg, t)
-		key.lastState = 1
-		key.lastStart = microseconds()
-	}
-
-}
-
-*/
-
 func main() {
-	//for {
 	if len(os.Getenv("TELEGRAPH_CONFIG_PATH")) == 0 {
 		os.Setenv("TELEGRAPH_CONFIG_PATH", "config.json")
 	}
@@ -496,19 +339,13 @@ func main() {
 					case term.KeyEsc:
 						os.Exit(1)
 					case term.KeySpace:
-						// term.Sync()
 						keyVal = rpio.High
 						break keyPressLoop
 					case term.KeyEnter:
-						// term.Sync()
 						keyVal = rpio.Low
 						break keyPressLoop
 					default:
 						break keyPressLoop
-						// we only want to read a single character or one key pressed event
-						// term.Sync()
-						// fmt.Println("ASCII : ", ev.Ch)
-						// keyVal = rpio.Low
 					}
 				case term.EventError:
 					panic(ev.Err)
@@ -537,7 +374,6 @@ func main() {
 		}
 
 		if len(queue) > 0 {
-			// m, err := strconv.ParseInt(queue[0], 10, 64)
 			m := queue[0]
 
 			if err != nil {
@@ -545,33 +381,13 @@ func main() {
 			}
 			ts := m[1 : len(queue[0])-4]
 			ts64, _ := strconv.ParseInt(ts, 10, 64)
-			// ts := m % 1e4
 
 			if ts64 > bufferReferenceTime+microseconds() {
 				msgValue, _ := strconv.Atoi(m[:1])
 
-				//keyId := m[:len(m)-4]
 				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
 				tone.set(msgValue)
 			}
 		}
 	}
-
-	//state = "receiving"
-
-	//go key.listen(sc, tone)
-
-	/*
-		for {
-			select {
-			case msg := <-startListeners:
-				if msg == true {
-					fmt.Println("New websocket connection! Starting new key listener goroutine.")
-					go sc.listen(tone)
-					go key.listen(sc, tone)
-					msg = false
-				}
-			}
-		}
-	*/
 }
