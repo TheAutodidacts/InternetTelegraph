@@ -190,13 +190,17 @@ func (sc *socketClient) onMessage(m string) {
 		if len(queue) > 0 {
 			// ...and there's already a queue from a different telegraph, do nothing.
 		} else {
+			fmt.Print("New telegraph detected. Setting bufferReferenceTime:")
 			lastKeyId = keyId
 			tsint64, err := strconv.ParseInt(ts, 10, 64)
 			if err != nil {
 				fmt.Println(err)
 			}
-			// Set the time offset between local and remote clients
+			// Set the time offset between local and remote clients, plus bufferDelay
 			bufferReferenceTime = (microseconds() + bufferDelay) - tsint64
+
+			fmt.Println(bufferReferenceTime)
+
 			queue = append(queue, m)
 		}
 
