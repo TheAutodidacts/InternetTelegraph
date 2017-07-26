@@ -36,6 +36,7 @@ type Config struct {
 	Channel string
 	Server  string
 	Port    string
+	Gpio    bool
 }
 
 type socketClient struct {
@@ -267,7 +268,7 @@ func main() {
 
 	file, _ := os.Open(os.Getenv("TELEGRAPH_CONFIG_PATH"))
 	decoder := json.NewDecoder(file)
-	config := Config{}
+	config := Config{Gpio: true}
 	err := decoder.Decode(&config)
 	if err != nil {
 		fmt.Println("Error reading config.json: ", err)
@@ -277,6 +278,8 @@ func main() {
 		config.Port = "8000"
 	}
 	fmt.Println(config.Channel)
+
+	gpio = config.Gpio
 
 	// Initialize morse key
 	key := morseKey{lastState: 1, lastDur: 0, lastStart: 0, lastEnd: 0}
