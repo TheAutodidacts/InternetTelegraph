@@ -99,8 +99,7 @@ func (t *tone) set(value int) {
 			t.spkrPin.Write(rpio.Low)
 			t.state = "OFF"
 
-		}
-		if value == 1 {
+		} else if value == 1 {
 			t.spkrPin.Write(rpio.High)
 			t.state = "ON"
 		} else {
@@ -111,8 +110,7 @@ func (t *tone) set(value int) {
 		if value == 0 {
 			// need to figure out the best way to generate + play a tone
 			t.state = "OFF"
-		}
-		if value == 1 {
+		} else if value == 1 {
 			// need to figure out the best way to generate + play a tone
 			t.state = "ON"
 		} else {
