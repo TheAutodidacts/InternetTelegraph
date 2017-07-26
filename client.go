@@ -252,9 +252,10 @@ func (sc *socketClient) outputListen() {
 			} else {
 				fmt.Print("Sent: ")
 				fmt.Println(outQueue[0])
-				outQueue = append(outQueue[:0], outQueue[0+1:]...) //
+				outQueue = append(outQueue[:0], outQueue[0+1:]...)
 			}
 		}
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
@@ -319,18 +320,19 @@ func main() {
 	// Start the listener that monitors the output queue and sends messages
 	go sc.outputListen()
 
-	keyVal := rpio.Low
-
-	fmt.Println(keyVal)
+	var gpioKeyVal rpio.State = rpio.High
 
 	// Adding a simplified version of things...
 	for {
+
 		if sc.status != "connected" && sc.status != "dialling" {
 			sc.dial(true) // Connect if broken
 		}
-		var val string
+
+		var keyVal string
+
 		if gpio == true {
-			keyVal = key.keyPin.Read()
+			gpioKeyVal = key.keyPin.Read()
 		} else {
 
 		keyPressLoop:
@@ -341,10 +343,10 @@ func main() {
 					case term.KeyEsc:
 						os.Exit(1)
 					case term.KeySpace:
-						keyVal = rpio.High
+						gpioKeyVal = rpio.Low
 						break keyPressLoop
 					case term.KeyEnter:
-						keyVal = rpio.Low
+						gpioKeyVal = rpio.High
 						break keyPressLoop
 					default:
 						break keyPressLoop
@@ -355,41 +357,39 @@ func main() {
 			}
 		}
 
-		if keyVal == rpio.High {
-			val = "1"
+		if gpioKeyVal == rpio.High {
+			keyVal = "0"
 		} else {
-			val = "0"
+			keyVal = "1"
 		}
 
-		if keyVal != lastKeyValue {
+		if keyVal != lastKeyVal {
 			fmt.Print("key change: ")
-			fmt.Print(lastKeyValue)
+			fmt.Print(lastKeyVal)
 			fmt.Print(" → ")
 			fmt.Println(keyVal)
-			toneVal, _ := strconv.Atoi(val)
+			toneVal, _ := strconv.Atoi(keyVal)
 			t.set(toneVal)
 			timestamp := strconv.FormatInt(microseconds(), 10)
-			msg := val + timestamp
+			msg := keyVal + timestamp + "v2"
 			outQueue = append(outQueue, msg)
-			//go sc.send(msg)
-			lastKeyValue = keyVal
+			lastKeyVal = keyVal
 		}
 
 		if len(queue) > 0 {
 			m := queue[0]
 
-			if err != nil {
-				fmt.Println(err)
-			}
 			ts := m[1 : len(queue[0])-4]
 			ts64, _ := strconv.ParseInt(ts, 10, 64)
 
-			if ts64 > bufferReferenceTime+microseconds() {
+			if ts64 < microseconds()-bufferReferenceTime {
 				msgValue, _ := strconv.Atoi(m[:1])
 
 				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
 				t.set(msgValue)
+
 			}
 		}
+		time.Sleep(1 * time.Millisecond)
 	}
 }
