@@ -261,18 +261,22 @@ func (sc *socketClient) listen(t tone) {
 func (sc *socketClient) outputListen(t tone) {
 	for {
 		if len(outQueue) > 0 {
-			data, err := strconv.ParseInt(outQueue[0], 10, 64)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			sendErr := websocket.Message.Send(sc.conn, data)
+
+			fmt.Println("Out queue detected in outputListen()")
+
+			// data, err := strconv.ParseInt(outQueue[0], 10, 64)
+			// if err != nil {
+			// 	fmt.Println(err.Error())
+			// }
+			fmt.Println("Sending message: " + outQueue[0])
+			sendErr := websocket.Message.Send(sc.conn, outQueue[0])
 			if sendErr != nil {
 				sc.status = "disconnected"
 				fmt.Print("sc.conn in send function = ")
 				fmt.Println(sc.conn)
 				fmt.Println("Could not send message:")
-				fmt.Println(err.Error())
-				if data/1e1 != 1 { // Error beep only on keyup, to prevent confusion.
+				fmt.Println(sendErr.Error())
+				if outQueue[0][:1] != "1" { // Error beep only on keyup, to prevent confusion.
 					playMorse("........", t)
 					fmt.Println("Redialling websocket server…")
 					fmt.Println("Current status: " + sc.status)
@@ -280,7 +284,7 @@ func (sc *socketClient) outputListen(t tone) {
 				}
 			} else {
 				fmt.Print("Sent: ")
-				fmt.Print(data)
+				fmt.Println(outQueue[0])
 				// fmt.Print(" send time: ")
 				// fmt.Println(send_time)
 				outQueue = append(outQueue[:0], outQueue[0+1:]...) //
@@ -463,15 +467,18 @@ func main() {
 		}
 
 		if len(queue) > 0 {
-			m, err := strconv.ParseInt(queue[0], 10, 64)
+			// m, err := strconv.ParseInt(queue[0], 10, 64)
+			m := queue[0]
+
 			if err != nil {
 				fmt.Println(err)
 			}
-			// ts := m[1 : len(queue)-4]
-			ts := m % 1e4
+			ts := m[1 : len(queue[0])-4]
+			ts64, _ := strconv.ParseInt(ts, 10, 64)
+			// ts := m % 1e4
 
-			if ts > bufferReferenceTime+microseconds() {
-				msgValue := int(m / 1e1)
+			if ts64 > bufferReferenceTime+microseconds() {
+				msgValue, _ := strconv.Atoi(m[:1])
 
 				//keyId := m[:len(m)-4]
 				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
