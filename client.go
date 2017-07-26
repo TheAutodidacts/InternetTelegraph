@@ -21,10 +21,9 @@ var (
 	queue               []string
 	outQueue            []string
 	bufferReferenceTime int64
-	bufferDelay         int64  // what should this be?
-	lastKeyId           string // identifier for the telegraph that the current queue came from
-	lastKeyValue        rpio.State
-	gpio                = false
+	bufferDelay         int64  = 500000 // what should this be?
+	lastKeyId           string          // identifier for the telegraph that the current queue came from
+	lastKeyVal          string
 	t                   tone
 )
 
