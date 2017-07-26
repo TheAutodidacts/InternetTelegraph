@@ -27,6 +27,7 @@ var (
 	lastKeyId           string // identifier for the telegraph that the current queue came from
 	lastKeyValue        rpio.State
 	gpio                = false
+	t                   tone
 )
 
 // var stopPWM = make(chan bool)
@@ -52,7 +53,7 @@ type tone struct {
 	spkrPin rpio.Pin
 }
 
-func (sc *socketClient) dial(firstDial bool, t tone) {
+func (sc *socketClient) dial(firstDial bool) {
 	sc.status = "dialling"
 	// start := time.Now()
 	retryEnd := time.Now().Add(time.Duration(1800) * time.Second) // try to reconnect for thirty minutes before completely giving up
@@ -64,7 +65,7 @@ func (sc *socketClient) dial(firstDial bool, t tone) {
 		conn, err := websocket.Dial("ws://"+sc.ip+":"+sc.port+"/channel/"+sc.channel, "", "http://localhost")
 		if err == nil {
 			sc.conn = conn
-			playMorse(".-. . .- -.. -.--", t)
+			playMorse(".-. . .- -.. -.--")
 			sc.status = "connected"
 			fmt.Println("sc.status = " + sc.status)
 			fmt.Print("sc.conn = ")
@@ -154,7 +155,7 @@ func (t *tone) stop() {
 	t.state = "OFF"
 }
 
-func playMorse(message string, t tone) {
+func playMorse(message string) {
 	speed := time.Duration(50)
 	for i := 0; i < len(message); i++ {
 		switch message[i] {
@@ -182,7 +183,7 @@ func microseconds() int64 {
 	return ms
 }
 
-func (sc *socketClient) onMessage(m string, t tone) {
+func (sc *socketClient) onMessage(m string) {
 	// value := m[:1]            // whether the key went up or down
 	ts := m[1 : len(m)-4] // timestamp (in microseconds)
 	keyId := m[len(m)-4:] // last 4 digits of message is the key id
@@ -212,7 +213,7 @@ func (sc *socketClient) onMessage(m string, t tone) {
 	}
 }
 
-func (sc *socketClient) listen(t tone) {
+func (sc *socketClient) listen() {
 	fmt.Println("Client listening…")
 	var msg string
 	for {
@@ -220,15 +221,15 @@ func (sc *socketClient) listen(t tone) {
 		if err != nil {
 			fmt.Println("Websocket error on Message.Receive(): " + err.Error())
 			sc.status = "disconnected"
-			sc.dial(false, t)
+			sc.dial(false)
 
 		} else {
-			sc.onMessage(msg, t)
+			sc.onMessage(msg)
 		}
 	}
 }
 
-func (sc *socketClient) outputListen(t tone) {
+func (sc *socketClient) outputListen() {
 	for {
 		if len(outQueue) > 0 {
 
@@ -243,10 +244,10 @@ func (sc *socketClient) outputListen(t tone) {
 				fmt.Println("Could not send message:")
 				fmt.Println(sendErr.Error())
 				if outQueue[0][:1] != "1" { // Error beep only on keyup, to prevent confusion.
-					playMorse("........", t)
+					playMorse("........")
 					fmt.Println("Redialling websocket server…")
 					fmt.Println("Current status: " + sc.status)
-					sc.dial(false, t)
+					sc.dial(false)
 				}
 			} else {
 				fmt.Print("Sent: ")
@@ -278,8 +279,7 @@ func main() {
 	// Initialize morse key
 	key := morseKey{lastState: 1, lastDur: 0, lastStart: 0, lastEnd: 0}
 
-	// Init tone
-	tone := tone{state: "OFF"}
+	t = tone{state: "OFF"}
 
 	if gpio == true {
 		// Setup GPIO
@@ -291,7 +291,7 @@ func main() {
 		keyPn.Input()
 		spkrPn := rpio.Pin(spkrPinBCM)
 		spkrPn.Output()
-		tone.spkrPin = spkrPn
+		t.spkrPin = spkrPn
 		key.keyPin = keyPn
 
 		defer rpio.Close()
@@ -309,13 +309,13 @@ func main() {
 	// Init socketClient & dial websocket
 	sc := socketClient{ip: config.Server, port: config.Port, channel: config.Channel}
 
-	sc.dial(true, tone)
+	sc.dial(true)
 
 	// Start the listener for incoming messages
-	go sc.listen(tone)
+	go sc.listen()
 
 	// Start the listener that monitors the output queue and sends messages
-	go sc.outputListen(tone)
+	go sc.outputListen()
 
 	keyVal := rpio.Low
 
@@ -324,7 +324,7 @@ func main() {
 	// Adding a simplified version of things...
 	for {
 		if sc.status != "connected" && sc.status != "dialling" {
-			sc.dial(true, tone) // Connect if broken
+			sc.dial(true) // Connect if broken
 		}
 		var val string
 		if gpio == true {
@@ -365,11 +365,11 @@ func main() {
 			fmt.Print(" → ")
 			fmt.Println(keyVal)
 			toneVal, _ := strconv.Atoi(val)
-			tone.set(toneVal)
+			t.set(toneVal)
 			timestamp := strconv.FormatInt(microseconds(), 10)
 			msg := val + timestamp
 			outQueue = append(outQueue, msg)
-			//go sc.send(msg, t)
+			//go sc.send(msg)
 			lastKeyValue = keyVal
 		}
 
@@ -386,7 +386,7 @@ func main() {
 				msgValue, _ := strconv.Atoi(m[:1])
 
 				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
-				tone.set(msgValue)
+				t.set(msgValue)
 			}
 		}
 	}
