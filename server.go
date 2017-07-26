@@ -6,6 +6,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strconv"
 
 	"golang.org/x/net/websocket"
 )
@@ -43,6 +44,11 @@ func addConnection(ws *websocket.Conn) {
 }
 
 func removeConnection(conn *websocket.Conn) {
+	fmt.Print("Removing ")
+	fmt.Print(conn)
+	fmt.Print(" from ")
+	fmt.Println(connections)
+
 	delete(connections, conn)
 	fmt.Println("Connection removed.")
 }
@@ -61,11 +67,22 @@ func broadcast(msg string, conn *websocket.Conn) {
 func broadcastToChannel(msg string, conn *websocket.Conn, channel string) {
 	for conn := range connections {
 		if conn.Request().URL.Path == channel {
-			err := websocket.Message.Send(conn, msg)
-			if err != nil {
-				fmt.Println("Error: ", err.Error())
+			msgSenderStr := msg[len(msg)-4:]
+			msgSender, _ := strconv.Atoi(msgSenderStr)
+			if msgSender == connections[conn].id && msg[len(msg)-6:len(msg)-4] == "v2" {
+				fmt.Print("Suppressing broadcast of ")
+				fmt.Print(msg)
+				fmt.Print(" to client #")
+				fmt.Println(fmt.Sprintf("%04d", connections[conn].id))
 			} else {
-				fmt.Println("Broadcast: " + msg)
+				// It’s from a different telegraph, or the sender is a v1 client,
+				// and needs it echoed for backward compatability.
+				err := websocket.Message.Send(conn, msg[:len(msg)-6]+msgSenderStr)
+				if err != nil {
+					fmt.Println("Error: ", err.Error())
+				} else {
+					fmt.Println("Broadcast: " + msg)
+				}
 			}
 		}
 	}
