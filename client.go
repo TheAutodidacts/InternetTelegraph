@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	term "github.com/nsf/termbox-go"
 	"github.com/stianeikeland/go-rpio"
 	"golang.org/x/net/websocket"
 )
@@ -25,6 +26,7 @@ var (
 	bufferDelay         int64  // what should this be?
 	lastKeyId           string // identifier for the telegraph that the current queue came from
 	lastKeyValue        rpio.State
+	gpio                = false
 )
 
 // var stopPWM = make(chan bool)
@@ -91,21 +93,39 @@ func (sc *socketClient) dial(firstDial bool, t tone) {
 }
 
 func (t *tone) set(value int) {
-	if value == 0 {
-		t.spkrPin.Write(rpio.Low)
-		t.state = "OFF"
+	if gpio == true {
+		if value == 0 {
+			t.spkrPin.Write(rpio.Low)
+			t.state = "OFF"
 
-	}
-	if value == 1 {
-		t.spkrPin.Write(rpio.High)
-		t.state = "ON"
+		}
+		if value == 1 {
+			t.spkrPin.Write(rpio.High)
+			t.state = "ON"
+		} else {
+			fmt.Print("Err! Couldn’t set tone to: ")
+			fmt.Println(value)
+		}
 	} else {
-		fmt.Println("Err! Couldn’t set tone")
+		if value == 0 {
+			// need to figure out the best way to generate + play a tone
+			t.state = "OFF"
+		}
+		if value == 1 {
+			// need to figure out the best way to generate + play a tone
+			t.state = "ON"
+		} else {
+			fmt.Println("Err! Couldn’t set tone")
+		}
 	}
 }
 
 func (t *tone) start() {
-	t.spkrPin.Write(rpio.High)
+	if gpio == true {
+		t.spkrPin.Write(rpio.High)
+	} else {
+		// TODO: cross-platform generate and play tone
+	}
 	t.state = "ON"
 
 	// This makes a very bad tone with a piezo buzzer.
@@ -125,7 +145,11 @@ func (t *tone) start() {
 }
 
 func (t *tone) stop() {
-	t.spkrPin.Write(rpio.Low)
+	if gpio == true {
+		t.spkrPin.Write(rpio.Low)
+	} else {
+		// TODO: cross-platform generate and play tone
+	}
 	// stopPWM <- true
 	t.state = "OFF"
 }
@@ -414,38 +438,84 @@ func main() {
 	// Init tone
 	tone := tone{state: "OFF"}
 
-	// Setup GPIO
-	openErr := rpio.Open()
-	if openErr != nil {
-		fmt.Println("Error initializing GPIO: " + err.Error())
+	if gpio == true {
+		// Setup GPIO
+		openErr := rpio.Open()
+		if openErr != nil {
+			fmt.Println("Error initializing GPIO: " + err.Error())
+		}
+		keyPn := rpio.Pin(keyPinBCM)
+		keyPn.Input()
+		spkrPn := rpio.Pin(spkrPinBCM)
+		spkrPn.Output()
+		tone.spkrPin = spkrPn
+		key.keyPin = keyPn
+
+		defer rpio.Close()
+
+	} else {
+		// Setup for keypress detection
+		err := term.Init()
+		if err != nil {
+			panic(err)
+		}
+
+		defer term.Close()
 	}
-	keyPn := rpio.Pin(keyPinBCM)
-	keyPn.Input()
-	spkrPn := rpio.Pin(spkrPinBCM)
-	spkrPn.Output()
-
-	tone.spkrPin = spkrPn
-	key.keyPin = keyPn
-
-	defer rpio.Close()
 
 	// Init socketClient & dial websocket
 	sc := socketClient{ip: config.Server, port: config.Port, channel: config.Channel}
 
 	sc.dial(true, tone)
 
+	// Start the listener for incoming messages
 	go sc.listen(tone)
 
+	// Start the listener that monitors the output queue and sends messages
 	go sc.outputListen(tone)
+
+	keyVal := rpio.Low
+
+	fmt.Println(keyVal)
 
 	// Adding a simplified version of things...
 	for {
-
 		if sc.status != "connected" && sc.status != "dialling" {
-			sc.dial(true, tone) // Connect
+			sc.dial(true, tone) // Connect if broken
 		}
 		var val string
-		keyVal := key.keyPin.Read()
+		if gpio == true {
+			keyVal = key.keyPin.Read()
+		} else {
+
+		keyPressLoop:
+			for {
+				switch ev := term.PollEvent(); ev.Type {
+				case term.EventKey:
+					switch ev.Key {
+					case term.KeyEsc:
+						os.Exit(1)
+					case term.KeySpace:
+						// term.Sync()
+						keyVal = rpio.High
+						break keyPressLoop
+					case term.KeyEnter:
+						// term.Sync()
+						keyVal = rpio.Low
+						break keyPressLoop
+					default:
+						break keyPressLoop
+						// we only want to read a single character or one key pressed event
+						// term.Sync()
+						// fmt.Println("ASCII : ", ev.Ch)
+						// keyVal = rpio.Low
+					}
+				case term.EventError:
+					panic(ev.Err)
+				}
+			}
+		}
+
 		if keyVal == rpio.High {
 			val = "1"
 		} else {
