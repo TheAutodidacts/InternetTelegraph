@@ -72,10 +72,10 @@ func (sc *socketClient) dial(firstDial bool) {
 			fmt.Println(sc.conn)
 			if firstDial != true {
 				// time to restart the listener goroutines with the new websocket
-				fmt.Println("Sending message to stopKeyListener channel.")
-				stopKeyListener <- true
-				fmt.Println("Sending message to startListeners channel.")
-				startListeners <- true
+				// fmt.Println("Sending message to stopKeyListener channel.")
+				// stopKeyListener <- true
+				// fmt.Println("Sending message to startListeners channel.")
+				// startListeners <- true
 			}
 			return
 		}
