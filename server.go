@@ -18,10 +18,21 @@ type Client struct {
 
 var (
 	connections = make(map[*websocket.Conn]Client)
+	idCounter   = 0
 )
 
 func addConnection(ws *websocket.Conn) {
-	id := len(connections) + 1
+	var id int
+	if len(connections) == 0 {
+		idCounter = 0
+	}
+	if len(connections)+1 > idCounter {
+		idCounter = len(connections) + 1
+		id = len(connections) + 1
+	} else {
+		idCounter = idCounter + 1
+		id = idCounter
+	}
 
 	fmt.Println(ws)
 	u := ws.Request().URL
