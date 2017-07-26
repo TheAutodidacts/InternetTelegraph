@@ -77,7 +77,7 @@ func Echo(ws *websocket.Conn) {
 			fmt.Println("Received back from client: " + incoming)
 			fmt.Println(ws.Request().URL.Path)
 			channel := ws.Request().URL.Path
-			incoming = incoming + fmt.Sprintf("%04d\n", connections[ws].id)
+			incoming = incoming + fmt.Sprintf("%04d", connections[ws].id)
 			broadcastToChannel(incoming, ws, channel)
 		}
 	}
