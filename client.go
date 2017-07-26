@@ -18,8 +18,6 @@ var (
 	spkrPinBCM          = 10
 	spkrPinNumber       = 19
 	state               = "idle"
-	stopKeyListener     = make(chan bool)
-	startListeners      = make(chan bool)
 	queue               []string
 	outQueue            []string
 	bufferReferenceTime int64
