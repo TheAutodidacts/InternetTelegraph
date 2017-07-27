@@ -24,6 +24,7 @@ var (
 	bufferDelay         int64  = 500000 // what should this be?
 	lastKeyId           string          // identifier for the telegraph that the current queue came from
 	lastKeyVal          string
+	gpio                bool
 	t                   tone
 )
 
