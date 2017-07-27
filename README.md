@@ -21,7 +21,7 @@ export GOOS=linux GOARCH=arm
 And build with:
 
 ```
-go build -v internet-telegraph.go
+go build -v client.go
 ```
 
 ### Installing the telegraph software
