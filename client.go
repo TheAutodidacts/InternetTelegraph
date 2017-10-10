@@ -185,6 +185,13 @@ func (sc *socketClient) onMessage(m string) {
 	ts := m[1 : len(m)-4] // timestamp (in microseconds)
 	keyId := m[len(m)-4:] // last 4 digits of message is the key id
 
+	fmt.Print("Received message ")
+	fmt.Print(m)
+	fmt.Print(" from ")
+	fmt.Print(keyId)
+	fmt.Print(" at ")
+	fmt.Println(time.Now())
+
 	if keyId != lastKeyId { // if its a different telegraph sending
 		if len(queue) > 0 {
 			// ...and there's already a queue from a different telegraph, do nothing.
@@ -203,12 +210,6 @@ func (sc *socketClient) onMessage(m string) {
 			queue = append(queue, m)
 		}
 
-		fmt.Print("Received message ")
-		fmt.Print(m)
-		fmt.Print(" from ")
-		fmt.Print(keyId)
-		fmt.Print(" at ")
-		fmt.Println(time.Now())
 	} else {
 		queue = append(queue, m)
 	}
@@ -327,6 +328,7 @@ func main() {
 	for {
 
 		if sc.status != "connected" && sc.status != "dialling" {
+			playMorse("........")
 			sc.dial(true) // Connect if broken
 		}
 
