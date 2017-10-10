@@ -76,11 +76,12 @@ func broadcastToChannel(msg string, conn *websocket.Conn, channel string) {
 			} else {
 				// It’s from a different telegraph, or the sender is a v1 client,
 				// and needs it echoed for backward compatability.
-				err := websocket.Message.Send(conn, msg[:len(msg)-6]+msgSenderStr)
+				outMsg := msg[:len(msg)-6] + msgSenderStr
+				err := websocket.Message.Send(conn, outMsg)
 				if err != nil {
 					fmt.Println("Error: ", err.Error())
 				} else {
-					fmt.Println("Broadcast: " + msg)
+					fmt.Println("Broadcast: " + outMsg)
 				}
 			}
 		}
