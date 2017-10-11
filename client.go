@@ -21,11 +21,17 @@ var (
 	queue               []string
 	outQueue            []string
 	bufferReferenceTime int64
-	bufferDelay         int64  = 500000 // what should this be?
+	bufferDelay         int64  = 500000 // Default buffer delay
 	lastKeyId           string          // identifier for the telegraph that the current queue came from
-	lastKeyVal          string
+	lastKeyVal          = "0"
 	gpio                bool
 	t                   tone
+	pingInterval        int64 = 30000 // Interval between test pings to the Server (milliseconds)
+	pingTimeout         int64 = 5000  // How long to wait after sending a ping before reporting an error (milliseconds)
+	pingTimer           int64
+	pingOutstanding           = false
+	redialInterval      int64 = 1000 // initial number of milliseconds between redial attempts
+	lastRedialTime      int64
 )
 
 // var stopPWM = make(chan bool)
@@ -52,6 +58,36 @@ type tone struct {
 	spkrPin rpio.Pin
 }
 
+func (sc *socketClient) dial(firstDial bool) {
+	fmt.Println("Dialing 'ws://" + sc.ip + ":" + sc.port + "/channel/" + sc.channel)
+
+	sc.status = "dialling"
+	conn, err := websocket.Dial("ws://"+sc.ip+":"+sc.port+"/channel/"+sc.channel, "", "http://localhost")
+	if err == nil {
+		sc.conn = conn
+		playMorse(".-. . .- -.. -.--")
+		sc.status = "connected"
+		fmt.Println("sc.status = " + sc.status)
+		fmt.Print("sc.conn = ")
+		fmt.Println(sc.conn)
+		return
+	}
+
+	if err != nil {
+		fmt.Println("Error connecting to 'ws://" + sc.ip + ":" + sc.port + "/channel/" + sc.channel + "': " + err.Error())
+		lastRedialTime = milliseconds()
+
+		redialInterval = redialInterval * 2
+
+		if redialInterval > 30000 {
+			redialInterval = 30000
+		}
+
+	}
+
+}
+
+/*
 func (sc *socketClient) dial(firstDial bool) {
 	sc.status = "dialling"
 	// start := time.Now()
@@ -86,11 +122,16 @@ func (sc *socketClient) dial(firstDial bool) {
 				sc.status = "disconnected"
 				return
 			}
+
+
+			playMorse("........")
+
 			time.Sleep(time.Duration(i) * time.Second)
 			continue
 		}
 	}
 }
+*/
 
 func (t *tone) set(value int) {
 	if gpio == true {
@@ -176,11 +217,24 @@ func playMorse(message string) {
 
 func microseconds() int64 {
 	t := time.Now().UnixNano()
-	ms := t / int64(time.Microsecond)
+	us := t / int64(time.Microsecond)
+	return us
+}
+
+func milliseconds() int64 {
+	t := time.Now().UnixNano()
+	ms := t / int64(time.Millisecond)
 	return ms
 }
 
 func (sc *socketClient) onMessage(m string) {
+
+	// Process pongs from the server
+	if m == "pong" {
+		pingOutstanding = false
+		return
+	}
+
 	// value := m[:1]            // whether the key went up or down
 	ts := m[1 : len(m)-4] // timestamp (in microseconds)
 	keyId := m[len(m)-4:] // last 4 digits of message is the key id
@@ -195,6 +249,8 @@ func (sc *socketClient) onMessage(m string) {
 	if keyId != lastKeyId { // if its a different telegraph sending
 		if len(queue) > 0 {
 			// ...and there's already a queue from a different telegraph, do nothing.
+			fmt.Print("New telegraph detected, but queue still has messages. Ignoring.")
+
 		} else {
 			fmt.Print("New telegraph detected. Setting bufferReferenceTime:")
 			lastKeyId = keyId
@@ -219,21 +275,26 @@ func (sc *socketClient) listen() {
 	fmt.Println("Client listening…")
 	var msg string
 	for {
-		err := websocket.Message.Receive(sc.conn, &msg)
-		if err != nil {
-			fmt.Println("Websocket error on Message.Receive(): " + err.Error())
-			sc.status = "disconnected"
-			sc.dial(false)
+		if sc.status == "connected" {
+			err := websocket.Message.Receive(sc.conn, &msg)
+			if err != nil {
+				fmt.Println("Websocket error on Message.Receive(): " + err.Error())
+				sc.status = "disconnected"
+				playMorse("........")
+				sc.dial(false)
 
+			} else {
+				sc.onMessage(msg)
+			}
 		} else {
-			sc.onMessage(msg)
+			time.Sleep(1 * time.Millisecond)
 		}
 	}
 }
 
 func (sc *socketClient) outputListen() {
 	for {
-		if len(outQueue) > 0 {
+		if len(outQueue) > 0 && sc.status == "connected" {
 
 			fmt.Println("Out queue detected in outputListen()")
 
@@ -328,8 +389,14 @@ func main() {
 	for {
 
 		if sc.status != "connected" && sc.status != "dialling" {
+			fmt.Println("Disconnection detected in main loop. Redialling...")
 			playMorse("........")
-			sc.dial(true) // Connect if broken
+			sc.dial(false) // Connect if broken
+		}
+
+		if sc.status == "dialling" && (milliseconds() > (lastRedialTime + redialInterval)) {
+			fmt.Println("Redial timer complete in main loop. Redialling...")
+			sc.dial(false)
 		}
 
 		var keyVal string
@@ -367,25 +434,30 @@ func main() {
 		}
 
 		if keyVal != lastKeyVal {
-			fmt.Print("key change: ")
-			fmt.Print(lastKeyVal)
-			fmt.Print(" → ")
-			fmt.Println(keyVal)
-			toneVal, _ := strconv.Atoi(keyVal)
-			t.set(toneVal)
-			timestamp := strconv.FormatInt(microseconds(), 10)
-			msg := keyVal + timestamp + "v2"
-			outQueue = append(outQueue, msg)
-			lastKeyVal = keyVal
+			if sc.status == "connected" {
+				fmt.Print("key change: ")
+				fmt.Print(lastKeyVal)
+				fmt.Print(" → ")
+				fmt.Println(keyVal)
+				toneVal, _ := strconv.Atoi(keyVal)
+				t.set(toneVal)
+				timestamp := strconv.FormatInt(microseconds(), 10)
+				msg := keyVal + timestamp + "v2"
+				outQueue = append(outQueue, msg)
+				lastKeyVal = keyVal
+			} else {
+				playMorse("........")
+				redialInterval = 1
+			}
 		}
 
-		if len(queue) > 0 {
+		if len(queue) > 0 { // If there's an input queue, parse the next message
 			m := queue[0]
 
 			ts := m[1 : len(queue[0])-4]
 			ts64, _ := strconv.ParseInt(ts, 10, 64)
 
-			if ts64 < microseconds()-bufferReferenceTime {
+			if ts64 < microseconds()-bufferReferenceTime { // If it's time to output this message, do so
 				msgValue, _ := strconv.Atoi(m[:1])
 
 				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
@@ -393,6 +465,23 @@ func main() {
 
 			}
 		}
+
+		if sc.status == "connected" {
+			// Ping the server periodically to check if we're actually connected
+			if milliseconds() > (pingTimer + pingInterval) {
+				pingTimer = milliseconds()
+				outQueue = append(outQueue, "ping")
+				pingOutstanding = true
+			}
+
+			if pingOutstanding == true && (milliseconds() > (pingTimer + pingTimeout)) {
+				fmt.Println("Server ping timeout. Connection error.")
+				playMorse("........")
+				sc.status = "disconnected"
+				pingTimer = milliseconds()
+			}
+		}
+
 		time.Sleep(1 * time.Millisecond)
 	}
 }
