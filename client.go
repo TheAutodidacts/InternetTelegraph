@@ -34,8 +34,6 @@ var (
 	lastRedialTime      int64
 )
 
-// var stopPWM = make(chan bool)
-
 type Config struct {
 	Channel string
 	Server  string
@@ -87,52 +85,6 @@ func (sc *socketClient) dial(firstDial bool) {
 
 }
 
-/*
-func (sc *socketClient) dial(firstDial bool) {
-	sc.status = "dialling"
-	// start := time.Now()
-	retryEnd := time.Now().Add(time.Duration(1800) * time.Second) // try to reconnect for thirty minutes before completely giving up
-
-	for i := 1; i > 0; i++ {
-		fmt.Print("Dialling websocket (try #")
-		fmt.Print(i)
-		fmt.Print(")\n")
-		conn, err := websocket.Dial("ws://"+sc.ip+":"+sc.port+"/channel/"+sc.channel, "", "http://localhost")
-		if err == nil {
-			sc.conn = conn
-			playMorse(".-. . .- -.. -.--")
-			sc.status = "connected"
-			fmt.Println("sc.status = " + sc.status)
-			fmt.Print("sc.conn = ")
-			fmt.Println(sc.conn)
-			if firstDial != true {
-				// time to restart the listener goroutines with the new websocket
-				// fmt.Println("Sending message to stopKeyListener channel.")
-				// stopKeyListener <- true
-				// fmt.Println("Sending message to startListeners channel.")
-				// startListeners <- true
-			}
-			return
-		}
-		if err != nil {
-			fmt.Println("Error connecting to 'ws://" + sc.ip + ":" + sc.port + "/channel/" + sc.channel + "': " + err.Error())
-			// connect to server; retry until the retry period has expired
-			if time.Now().After(retryEnd) {
-				fmt.Println("Timed out; websocket reconnection failed too many times.")
-				sc.status = "disconnected"
-				return
-			}
-
-
-			playMorse("........")
-
-			time.Sleep(time.Duration(i) * time.Second)
-			continue
-		}
-	}
-}
-*/
-
 func (t *tone) set(value int) {
 	if gpio == true {
 		if value == 0 {
@@ -163,7 +115,7 @@ func (t *tone) start() {
 	if gpio == true {
 		t.spkrPin.Write(rpio.High)
 	} else {
-		// TODO: cross-platform generate and play tone
+		// TODO: cross-platform way generate and play tone
 	}
 	t.state = "ON"
 
@@ -189,7 +141,6 @@ func (t *tone) stop() {
 	} else {
 		// TODO: cross-platform generate and play tone
 	}
-	// stopPWM <- true
 	t.state = "OFF"
 }
 
@@ -460,7 +411,7 @@ func main() {
 			if ts64 < microseconds()-bufferReferenceTime { // If it's time to output this message, do so
 				msgValue, _ := strconv.Atoi(m[:1])
 
-				queue = append(queue[:0], queue[0+1:]...) // pop message out of queue
+				queue = append(queue[:0], queue[0+1:]...) // Pop message out of queue
 				t.set(msgValue)
 
 			}
