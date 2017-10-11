@@ -101,8 +101,17 @@ func Echo(ws *websocket.Conn) {
 			}
 			fmt.Println("Can't receive")
 			continue
+		} else if(incoming == "ping"){ // Reply to client pings
+
+			err := websocket.Message.Send(ws, "pong")
+			if err != nil {
+				fmt.Println("Error: ", err.Error())
+			} else {
+				fmt.Println("Pong sent")
+			}
+
 		} else {
-			fmt.Println("Received back from client: " + incoming)
+			fmt.Println("Received from client: " + incoming)
 			fmt.Println(ws.Request().URL.Path)
 			channel := ws.Request().URL.Path
 			incoming = incoming + fmt.Sprintf("%04d", connections[ws].id)
