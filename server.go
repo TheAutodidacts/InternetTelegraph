@@ -101,7 +101,7 @@ func Echo(ws *websocket.Conn) {
 			}
 			fmt.Println("Can't receive")
 			continue
-		} else if(incoming == "ping"){ // Reply to client pings
+		} else if incoming == "ping" { // Reply to client pings
 
 			err := websocket.Message.Send(ws, "pong")
 			if err != nil {
