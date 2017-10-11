@@ -26,7 +26,7 @@ var (
 	lastKeyVal          = "0"
 	gpio                bool
 	t                   tone
-	pingInterval        int64 = 30000 // Interval between test pings to the Server (milliseconds)
+	pingInterval        int64 = 30000 // Interval between test pings to the server (milliseconds)
 	pingTimeout         int64 = 5000  // How long to wait after sending a ping before reporting an error (milliseconds)
 	pingTimer           int64
 	pingOutstanding           = false
@@ -57,6 +57,7 @@ type tone struct {
 }
 
 func (sc *socketClient) dial(firstDial bool) {
+
 	fmt.Println("Dialing 'ws://" + sc.ip + ":" + sc.port + "/channel/" + sc.channel)
 
 	sc.status = "dialling"
@@ -427,9 +428,8 @@ func main() {
 
 			if pingOutstanding == true && (milliseconds() > (pingTimer + pingTimeout)) {
 				fmt.Println("Server ping timeout. Connection error.")
-				playMorse("........")
 				sc.status = "disconnected"
-				pingTimer = milliseconds()
+				pingOutstanding = false
 			}
 		}
 
