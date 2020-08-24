@@ -18,6 +18,14 @@ Set the relevant environment variables with:
 export GOOS=linux GOARCH=arm
 ```
 
+`go get` the neccessary dependencies:
+
+```
+go get -u github.com/nsf/termbox-go
+go get -u github.com/stianeikeland/go-rpio
+go get -u golang.org/x/net/websocket
+```
+
 And build with:
 
 ```
@@ -47,7 +55,7 @@ There are two ways to go from here: you can take the SD card out of your Pi and 
 - SSH into your Pi. You can use [nmap](http://nmap.org) (`nmap 192.168.1.0/24`) to find your Pi’s IP address, or try `ssh pi@raspberrypi.local`.
 - Type in your Pi’s password (which you have hopefully changed from the default, "raspberry")
 - [Download the telegraph code](https://github.com/TheAutodidacts/InternetTelegraph/archive/master.zip) from GitHub.
-- Build the telegraph client for ARM, as described above, or download the prebuilt binary from the ["releases" page]https://github.com/TheAutodidacts/InternetTelegraph/releases/latest) and stick it in the same directory as the sourcecode.
+- Build the telegraph client for ARM, as described above, or download the prebuilt binary from the ["releases" page](https://github.com/TheAutodidacts/InternetTelegraph/releases/latest) and stick it in the same directory as the sourcecode.
 - Copy the files to your Pi over SSH with the following three commands:
 
 ```
